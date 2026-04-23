@@ -97,6 +97,7 @@
     <canvas id="board" width="540" height="540"></canvas>
     <div class="buttons">
         <button onclick="restartGame()">重新开始</button>
+        <button onclick="undoMove()">悔棋</button>
     </div>
 
     <script>
@@ -109,6 +110,7 @@
         let currentPlayer = 'black';
         let gameOver = false;
         let mode = 'ai';
+        let history = [];
 
         function init() {
             board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
@@ -208,7 +210,10 @@
             }
         }
 
-        function placePiece(row, col) {
+        function placePiece(row, col, saveHistory = true) {
+            if (saveHistory) {
+                history.push({ row, col, player: currentPlayer });
+            }
             board[row][col] = currentPlayer;
             drawBoard();
 
@@ -224,10 +229,33 @@
             }
         }
 
+        function undoMove() {
+            if (history.length === 0) return;
+            if (gameOver) {
+                gameOver = false;
+            }
+
+            let steps = mode === 'ai' ? 2 : 1;
+
+            for (let i = 0; i < steps && history.length > 0; i++) {
+                const last = history.pop();
+                board[last.row][last.col] = null;
+            }
+
+            if (history.length > 0) {
+                currentPlayer = history[history.length - 1].player;
+            } else {
+                currentPlayer = 'black';
+            }
+
+            drawBoard();
+            updateInfo();
+        }
+
         function aiMove() {
             if (gameOver) return;
             const [row, col] = getBestMove();
-            placePiece(row, col);
+            placePiece(row, col, true);
         }
 
         function getBestMove() {
@@ -352,6 +380,7 @@
         }
 
         function restartGame() {
+            history = [];
             init();
         }
 

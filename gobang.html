@@ -32,6 +32,30 @@
             background: rgba(255,255,255,0.1);
             border-radius: 8px;
         }
+        .mode-select {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .mode-select button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            background: #555;
+            color: #fff;
+            transition: all 0.2s;
+        }
+        .mode-select button.active {
+            background: #4CAF50;
+        }
+        .mode-select button:hover {
+            background: #666;
+        }
+        .mode-select button.active:hover {
+            background: #45a049;
+        }
         canvas {
             background: #deb887;
             border: 3px solid #8b4513;
@@ -65,7 +89,11 @@
 </head>
 <body>
     <h1>五子棋</h1>
-    <div class="game-info" id="gameInfo">黑方回合</div>
+    <div class="game-info" id="gameInfo">你的回合</div>
+    <div class="mode-select">
+        <button id="pvpBtn" onclick="setMode('pvp')">双人对战</button>
+        <button id="aiBtn" class="active" onclick="setMode('ai')">人机对战</button>
+    </div>
     <canvas id="board" width="540" height="540"></canvas>
     <div class="buttons">
         <button onclick="restartGame()">重新开始</button>
@@ -80,6 +108,7 @@
         let board = [];
         let currentPlayer = 'black';
         let gameOver = false;
+        let mode = 'ai';
 
         function init() {
             board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
@@ -87,6 +116,13 @@
             gameOver = false;
             drawBoard();
             updateInfo();
+        }
+
+        function setMode(newMode) {
+            mode = newMode;
+            document.getElementById('pvpBtn').classList.toggle('active', mode === 'pvp');
+            document.getElementById('aiBtn').classList.toggle('active', mode === 'ai');
+            restartGame();
         }
 
         function drawBoard() {
@@ -157,12 +193,22 @@
 
         function handleClick(e) {
             if (gameOver) return;
+            if (mode === 'ai' && currentPlayer === 'white') return;
+
             const pos = getBoardPos(e.clientX, e.clientY);
             if (!pos) return;
 
             const [row, col] = pos;
             if (board[row][col]) return;
 
+            placePiece(row, col);
+
+            if (!gameOver && mode === 'ai') {
+                setTimeout(aiMove, 500);
+            }
+        }
+
+        function placePiece(row, col) {
             board[row][col] = currentPlayer;
             drawBoard();
 
@@ -171,11 +217,94 @@
                 gameOver = true;
                 highlightWin(winLine);
                 document.getElementById('gameInfo').textContent =
-                    `${currentPlayer === 'black' ? '黑方' : '白方'}获胜！`;
+                    `${currentPlayer === 'black' ? '你' : 'AI'}获胜！`;
             } else {
                 currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
                 updateInfo();
             }
+        }
+
+        function aiMove() {
+            if (gameOver) return;
+            const [row, col] = getBestMove();
+            placePiece(row, col);
+        }
+
+        function getBestMove() {
+            let bestScore = -Infinity;
+            let bestMoves = [];
+
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    if (!board[i][j]) {
+                        const score = evaluatePosition(i, j);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestMoves = [[i, j]];
+                        } else if (score === bestScore) {
+                            bestMoves.push([i, j]);
+                        }
+                    }
+                }
+            }
+
+            return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+        }
+
+        function evaluatePosition(row, col) {
+            const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+            let score = 0;
+
+            for (const [dr, dc] of directions) {
+                score += evaluateLine(row, col, dr, dc, 'white') * 1.1;
+                score += evaluateLine(row, col, dr, dc, 'black');
+            }
+
+            return score;
+        }
+
+        function evaluateLine(row, col, dr, dc, color) {
+            let count = 0;
+            let openEnds = 0;
+
+            for (let i = 1; i <= 4; i++) {
+                const nr = row + dr * i;
+                const nc = col + dc * i;
+                if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) break;
+                if (board[nr][nc] === color) {
+                    count++;
+                } else if (board[nr][nc] === null) {
+                    openEnds++;
+                    break;
+                } else {
+                    break;
+                }
+            }
+
+            for (let i = 1; i <= 4; i++) {
+                const nr = row - dr * i;
+                const nc = col - dc * i;
+                if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) break;
+                if (board[nr][nc] === color) {
+                    count++;
+                } else if (board[nr][nc] === null) {
+                    openEnds++;
+                    break;
+                } else {
+                    break;
+                }
+            }
+
+            if (count === 0 && openEnds === 0) return 0;
+
+            if (count >= 4) return 100000;
+            if (count === 3 && openEnds === 2) return 10000;
+            if (count === 3 && openEnds === 1) return 1000;
+            if (count === 2 && openEnds === 2) return 100;
+            if (count === 2 && openEnds === 1) return 10;
+            if (count === 1 && openEnds === 2) return 5;
+
+            return count * 2 + openEnds;
         }
 
         function checkWin(row, col) {
@@ -216,8 +345,10 @@
         }
 
         function updateInfo() {
-            document.getElementById('gameInfo').textContent =
-                `${currentPlayer === 'black' ? '黑方' : '白方'}回合`;
+            const text = mode === 'ai'
+                ? (currentPlayer === 'black' ? '你的回合' : 'AI思考中...')
+                : `${currentPlayer === 'black' ? '黑方' : '白方'}回合`;
+            document.getElementById('gameInfo').textContent = text;
         }
 
         function restartGame() {

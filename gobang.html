@@ -112,11 +112,13 @@
         let mode = 'ai';
         let history = [];
         let aiTimeout = null;
+        let lastMove = null;
 
         function init() {
             board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
             currentPlayer = 'black';
             gameOver = false;
+            lastMove = null;
             drawBoard();
             updateInfo();
         }
@@ -154,6 +156,17 @@
                         drawPiece(i, j, board[i][j]);
                     }
                 }
+            }
+
+            if (lastMove) {
+                const [lr, lc] = lastMove;
+                const x = PADDING + lc * CELL_SIZE;
+                const y = PADDING + lr * CELL_SIZE;
+                ctx.beginPath();
+                ctx.arc(x, y, 18, 0, Math.PI * 2);
+                ctx.strokeStyle = '#f00';
+                ctx.lineWidth = 3;
+                ctx.stroke();
             }
         }
 
@@ -216,6 +229,7 @@
                 history.push({ row, col, player: currentPlayer });
             }
             board[row][col] = currentPlayer;
+            lastMove = [row, col];
             drawBoard();
 
             const winLine = checkWin(row, col);
@@ -246,6 +260,8 @@
                 const last = history.pop();
                 board[last.row][last.col] = null;
             }
+
+            lastMove = history.length > 0 ? [history[history.length - 1].row, history[history.length - 1].col] : null;
 
             currentPlayer = 'black';
 
@@ -382,6 +398,7 @@
 
         function restartGame() {
             history = [];
+            lastMove = null;
             if (aiTimeout) {
                 clearTimeout(aiTimeout);
                 aiTimeout = null;

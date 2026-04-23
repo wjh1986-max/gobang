@@ -111,6 +111,7 @@
         let gameOver = false;
         let mode = 'ai';
         let history = [];
+        let aiTimeout = null;
 
         function init() {
             board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
@@ -206,7 +207,7 @@
             placePiece(row, col);
 
             if (!gameOver && mode === 'ai') {
-                setTimeout(aiMove, 500);
+                aiTimeout = setTimeout(aiMove, 500);
             }
         }
 
@@ -233,6 +234,10 @@
             if (history.length === 0) return;
             if (gameOver) {
                 gameOver = false;
+            }
+            if (aiTimeout) {
+                clearTimeout(aiTimeout);
+                aiTimeout = null;
             }
 
             let steps = mode === 'ai' ? 2 : 1;
@@ -381,6 +386,10 @@
 
         function restartGame() {
             history = [];
+            if (aiTimeout) {
+                clearTimeout(aiTimeout);
+                aiTimeout = null;
+            }
             init();
         }
 

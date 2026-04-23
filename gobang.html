@@ -247,11 +247,7 @@
                 board[last.row][last.col] = null;
             }
 
-            if (history.length > 0) {
-                currentPlayer = history[history.length - 1].player;
-            } else {
-                currentPlayer = 'black';
-            }
+            currentPlayer = 'black';
 
             drawBoard();
             updateInfo();

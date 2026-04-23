@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五子棋</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: #fff;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .game-info {
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(15, 36px);
+            grid-template-rows: repeat(15, 36px);
+            background: #deb887;
+            border: 3px solid #8b4513;
+            border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .cell {
+            width: 36px;
+            height: 36px;
+            border: 1px solid #8b4513;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+        }
+        .cell:hover {
+            background: rgba(255,200,100,0.3);
+        }
+        .cell.black::after {
+            content: '';
+            width: 28px;
+            height: 28px;
+            background: radial-gradient(circle at 30% 30%, #555, #000);
+            border-radius: 50%;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+        }
+        .cell.white::after {
+            content: '';
+            width: 28px;
+            height: 28px;
+            background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+            border-radius: 50%;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .cell.winning::after {
+            box-shadow: 0 0 15px 5px #ff0, 0 0 30px 10px #f80;
+        }
+        .buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 1em;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            background: #4CAF50;
+            color: white;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        button.restart {
+            background: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <h1>五子棋</h1>
+    <div class="game-info" id="gameInfo">黑方回合</div>
+    <div class="board" id="board"></div>
+    <div class="buttons">
+        <button onclick="restartGame()">重新开始</button>
+    </div>
+
+    <script>
+        const BOARD_SIZE = 15;
+        let board = [];
+        let currentPlayer = 'black';
+        let gameOver = false;
+
+        function init() {
+            board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+            currentPlayer = 'black';
+            gameOver = false;
+            renderBoard();
+            updateInfo();
+        }
+
+        function renderBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (board[i][j]) {
+                        cell.classList.add(board[i][j]);
+                    }
+                    cell.onclick = () => handleClick(i, j);
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        function handleClick(row, col) {
+            if (gameOver || board[row][col]) return;
+
+            board[row][col] = currentPlayer;
+            renderBoard();
+
+            if (checkWin(row, col)) {
+                gameOver = true;
+                highlightWin(row, col);
+                document.getElementById('gameInfo').textContent =
+                    `${currentPlayer === 'black' ? '黑方' : '白方'}获胜！`;
+            } else {
+                currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+                updateInfo();
+            }
+        }
+
+        function checkWin(row, col) {
+            const directions = [
+                [0, 1], [1, 0], [1, 1], [1, -1]
+            ];
+            for (const [dr, dc] of directions) {
+                let count = 1;
+                for (let i = 1; i < 5; i++) {
+                    const nr = row + dr * i;
+                    const nc = col + dc * i;
+                    if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE
+                        && board[nr][nc] === currentPlayer) {
+                        count++;
+                    } else break;
+                }
+                for (let i = 1; i < 5; i++) {
+                    const nr = row - dr * i;
+                    const nc = col - dc * i;
+                    if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE
+                        && board[nr][nc] === currentPlayer) {
+                        count++;
+                    } else break;
+                }
+                if (count >= 5) return true;
+            }
+            return false;
+        }
+
+        function highlightWin(row, col) {
+            const directions = [
+                [0, 1], [1, 0], [1, 1], [1, -1]
+            ];
+            for (const [dr, dc] of directions) {
+                let cells = [[row, col]];
+                for (let i = 1; i < 5; i++) {
+                    const nr = row + dr * i;
+                    const nc = col + dc * i;
+                    if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE
+                        && board[nr][nc] === currentPlayer) {
+                        cells.push([nr, nc]);
+                    } else break;
+                }
+                for (let i = 1; i < 5; i++) {
+                    const nr = row - dr * i;
+                    const nc = col - dc * i;
+                    if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE
+                        && board[nr][nc] === currentPlayer) {
+                        cells.push([nr, nc]);
+                    } else break;
+                }
+                if (cells.length >= 5) {
+                    cells.forEach(([r, c]) => {
+                        document.querySelector('.cell').parentNode;
+                    });
+                    const boardEl = document.getElementById('board');
+                    cells.forEach(([r, c]) => {
+                        const index = r * BOARD_SIZE + c;
+                        boardEl.children[index].classList.add('winning');
+                    });
+                    break;
+                }
+            }
+        }
+
+        function updateInfo() {
+            document.getElementById('gameInfo').textContent =
+                `${currentPlayer === 'black' ? '黑方' : '白方'}回合`;
+        }
+
+        function restartGame() {
+            init();
+        }
+
+        init();
+    </script>
+</body>
+</html>

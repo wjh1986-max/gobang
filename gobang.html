@@ -113,14 +113,68 @@
         let history = [];
         let aiTimeout = null;
         let lastMove = null;
+        let audioCtx = null;
 
+        function getAudioCtx() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioCtx;
+        }
+
+        function playSound(freq, duration, type = 'sine', volume = 0.3) {
+            const ctx = getAudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(volume, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + duration);
+        }
+
+        function playPlaceSound() {
+            playSound(800, 0.1, 'sine', 0.3);
+            setTimeout(() => playSound(600, 0.08, 'sine', 0.2), 50);
+        }
+
+        function playWinSound() {
+            const notes = [523, 659, 784, 1047];
+            notes.forEach((f, i) => {
+                setTimeout(() => playSound(f, 0.3, 'sine', 0.3), i * 150);
+            });
+        }
+
+        function playLoseSound() {
+            const notes = [400, 350, 300, 200];
+            notes.forEach((f, i) => {
+                setTimeout(() => playSound(f, 0.4, 'sawtooth', 0.2), i * 200);
+            });
+        }
+
+        function playStartMusic() {
+            const melody = [523, 587, 659, 784, 659, 784, 1047];
+            melody.forEach((f, i) => {
+                setTimeout(() => playSound(f, 0.25, 'sine', 0.25), i * 180);
+            });
+        }
+
+        let started = false;
         function init() {
             board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
             currentPlayer = 'black';
             gameOver = false;
             lastMove = null;
+            history = [];
             drawBoard();
             updateInfo();
+            if (!started) {
+                started = true;
+                playStartMusic();
+            }
         }
 
         function setMode(newMode) {
@@ -231,13 +285,18 @@
             board[row][col] = currentPlayer;
             lastMove = [row, col];
             drawBoard();
+            playPlaceSound();
 
             const winLine = checkWin(row, col);
             if (winLine) {
                 gameOver = true;
                 highlightWin(winLine);
+                const isPlayerWin = currentPlayer === 'black';
                 document.getElementById('gameInfo').textContent =
-                    `${currentPlayer === 'black' ? '你' : 'AI'}获胜！`;
+                    `${isPlayerWin ? '你' : 'AI'}获胜！`;
+                setTimeout(() => {
+                    isPlayerWin ? playWinSound() : playLoseSound();
+                }, 300);
             } else {
                 currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
                 updateInfo();
